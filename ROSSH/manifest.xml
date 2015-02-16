@@ -1,0 +1,21 @@
+<package>
+  <description brief="dcc">
+
+     dcc
+
+  </description>
+  <author></author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/dcc</url>
+	<export>
+		<cpp cflags="-I${prefix}/include" lflags=""/>
+	</export>
+	<depend package="paramon"/>
+	<depend package="robostix"/>
+	<depend package="std_msgs"/>
+	<depend package="std_srvs"/>
+	<depend package="network"/>
+</package>
+
+

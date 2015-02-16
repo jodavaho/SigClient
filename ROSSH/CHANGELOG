@@ -1,0 +1,3 @@
+Purpose: Programmatic interface to the robostix which controls the receiver
+*1872 Many changes including an expanded interface (raw, set aerial mode, etc)
+*1872 Also includes the firmware and protocol.h. This package will be self-contained access to the receiver

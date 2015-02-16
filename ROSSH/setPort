@@ -1,0 +1,2 @@
+#!/bin/bash
+rosparam set dcc/port $1

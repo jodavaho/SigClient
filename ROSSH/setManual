@@ -1,0 +1,2 @@
+#!/bin/bash
+rosservice call /dcc/manual $1

@@ -1,0 +1,2 @@
+#!/bin/bash
+rosservice call /dcc/pulse_data dcc/PulseData $1 0
