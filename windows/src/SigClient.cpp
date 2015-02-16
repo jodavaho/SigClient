@@ -17,7 +17,7 @@
 
 //Adjust project settings to  include 
 //$(HOMEPATH)/Desktop/carpMonitoring/heartbeat/include
-#include "networking/protocol.h"
+#include "network/protocol.h"
 /**Local API **/
 #include "BB60APIW32.h"
 /** Expand the number of timers in helpers.h**/
@@ -77,8 +77,8 @@ namespace sig_dog{
 	int openSH();
 	int openComs(int port=DCCTCP::dcc_port);
 	int sampleBKG( double bkgSampleTime =30.0);
-	int goSigDog(int numFreq,double* freqList,double vals[], double sampleTime=2.2, int notag=0, double notagList[]=NULL);
-	int sendVals(int N, double freqList[], double vals[]);
+	int goSigDog(std::vector<double> freqList,std::vector<double> &vals, double sampleTime=2.2, int notag=0, std::vector<double> notagList[]=std::vector<double>());
+	int sendVals(std::vector<double> freqList[], std::vector<double> &vals);
 	void closeSH();
 	int closeComs();
 	double SS(SigBucket *b);
@@ -257,14 +257,17 @@ int sig_dog::openComs(int port){
 }
 
 //Sends the *N* items in freqList[] and vals[] as key,value pairs out over the network. assumes openComs() was successful.
-int sig_dog::sendVals(int N, double freqList[], double vals[]){
+int sig_dog::sendVals(std::vector<double> freqList, std::vector<double> vals){
+
+	int N= freqList.size();
+	assert(freqList.size()==vals.size());
 
 	std::stringstream ss;
-
 	ss<<"host="<<hostname<<SimpleProtocol::pair_delim_str[0];
 	ss<<SimpleProtocol::msg_start_str[0];
 	ss<<"Temp"<<SimpleProtocol::key_value_delim_str[0]<<sig_dog::temp<<SimpleProtocol::pair_delim_str[0];
 	ss<<"Error"<<SimpleProtocol::key_value_delim_str[0]<<sig_dog::cur_error<<SimpleProtocol::pair_delim_str[0];
+
 	for (int i=0;i<N;i++){
 		ss<<freqList[i]<<SimpleProtocol::key_value_delim_str[0]<<vals[i];
 		if (i<N-1)
@@ -408,7 +411,8 @@ int sig_dog::sampleBKG( double bkgSampleTime){
 }
 //main loop should include this, which calls the SH to get frequency samples. returns signal strength in the vals[] array. Uses
 //the bucket arrays, avg, mins, maxs arrays as working space so don't touch those. assumes openSH was successful.
-int sig_dog::goSigDog(int numFreq,double*freqList,double l_vals[], double sampleTime, int notag, double notagList[]){
+int sig_dog::goSigDog(std::vector<double> freqList,std::vector<double> &l_vals, double sampleTime, int notag, std::vector<double> notagList){
+
 
 	/** Time keeping **/
 	double sweeptime=0.0;
@@ -439,7 +443,7 @@ int sig_dog::goSigDog(int numFreq,double*freqList,double l_vals[], double sample
 
 	}
 	double f, var, mx, avg;
-	for (int i=0;i<numFreq;i++){
+	for (int i=0;i<freqList.size();i++){
 		f = freqList[i];
 		int bidx = (int) floor( (f*1e6-startFreq)/binSize );
 		avg=0.0;
@@ -473,20 +477,30 @@ void sig_dog::closeSH(){
 
 /**************************************************MAIN******************************/
 
-int main(){
-	sig_dog::DCC_ON = false;
-	sig_dog::temp = -1;
+int main(int argc, char** argv){
 	double bkgSampleTime = 0.0; //sec
 	double sampleTime = 5.0; //sec
 	int numTries=10;
-	WARN("Using pre-defined values of numFreq and freqList");
-	const int numFreq=4;
-	double freqList[] = {49.611,49.641,49.691,49.661}; //Mhz  Need at least one bin --> .3 / 3 = .10 bin size
-	double notag[] = {49.777, 48.411};
-	double mvals[numFreq];
+	
+	std::vector<double> freqList;
+	std::vector<double> mvals;
+	std::vector<double> notag;
 
-	for (int i=0;i<numFreq;i++){
-		mvals[i]=0.0;
+	if (argc>1) { //arguments received, non-automated mdoe
+	} else {
+		WARN("Using pre-defined values of numFreq and freqList");
+		sig_dog::DCC_ON = false;
+		sig_dog::temp = -1;
+		freqList.push_back(49.611);
+		freqList.push_back(49.641);
+		freqList.push_back(49.691);
+		freqList.push_back(49.661);
+		notag.push_back(49.777);
+		notag.push_back(48.411);
+	}
+
+	for (int i=0;i<freqList.size();i++){
+		mvals.push_back(0.0);
 	}
 	sig_dog::cur_error = 0;
 
@@ -496,7 +510,7 @@ int main(){
 		start_timer(sig_dog::T_c);
 		bbStatus status = bbQueryDiagnostics(sig_dog::devID,&sig_dog::temp,&sig_dog::v1,&sig_dog::v2,&sig_dog::usbVoltage,&sig_dog::usbCurrent);
 		if (sig_dog::DCC_ON){
-			if(sig_dog::goSigDog(numFreq,freqList,mvals,sampleTime)){
+			if(sig_dog::goSigDog(freqList,mvals,sampleTime)){
 				FINFO("Error in goSigDog()\n");
 				sig_dog::cur_error = 1;
 				sig_dog::DCC_ON = false;
@@ -504,14 +518,14 @@ int main(){
 			} else {
 				sig_dog::cur_error = 0;
 				FINFO("Fetch: %f\n",stop_timer(sig_dog::T_c));
-				for (int i=0;i<numFreq;i++){
+				for (int i=0;i<freqList.size();i++){
 					FINFO("  * %f=%lf\n",freqList[i],mvals[i]);
 				}
 			}
 		} else {
 			FINFO("SigDog off\n");
 			Sleep(2000);
-			for (int i=0;i<numFreq;i++){
+			for (int i=0;i<freqList.size();i++){
 				mvals[i]=0;
 			}
 		}
@@ -524,7 +538,7 @@ int main(){
 				FINFO("  * Signal hound already off\n");
 			}
 		} else {
-			if (sig_dog::sendVals(numFreq,freqList,mvals)){FINFO("Error in sending\n");}
+			if (sig_dog::sendVals(freqList,mvals)){FINFO("Error in sending\n");}
 			if (sig_dog::closeComs()){FINFO("Error in closing coms\n");}
 		}
 	}
