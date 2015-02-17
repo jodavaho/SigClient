@@ -1,3 +1,23 @@
+#ifdef WIN32
+#define WINDOWS
+#endif
+
+#ifdef _WIN32
+#define WINDOWS
+#endif
+
+#ifdef _WIN64
+#define WINDOWS
+#endif
+
+#ifdef WINDOWS
+/* To cooperate with windows programs */
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <iphlpapi.h>
+#include <Windows.h>
+#endif
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
@@ -5,12 +25,9 @@
 #include <cstring>
 #include <vector>
 #include <sstream>
-#include <dcc/DCCTCP.h>
+#include <network/DCCTCP.h>
+#include <errno.h>
 
-//#include <Windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <iphlpapi.h>
 #include <stdio.h>
 
 #pragma comment(lib, "Ws2_32.lib")
@@ -189,10 +206,6 @@ int sig_dog::openComs(int port){
 	char pbuf[256];
 	struct addrinfo hits;
 	struct addrinfo server_addr,*res; //we're hardcoding the server addr like chumps
-
-	//damn legacy interface:
-	int YES = 1;
-	int NO = 0;
 
 	//for checking ifaces:
 	struct addrinfo *p;
@@ -486,8 +499,14 @@ int main(int argc, char** argv){
 	std::vector<double> mvals;
 	std::vector<double> notag;
 
-	if (argc>1) { //arguments received, non-automated mdoe
-	} else {
+	for (int i=1;i<argc;i++){
+		errno=0;
+		double din=strtod(argv[i],NULL);
+		if (!errno){
+			freqList.push_back(din);
+		}
+	}
+	if (freqList.size()==0){
 		WARN("Using pre-defined values of numFreq and freqList");
 		sig_dog::DCC_ON = false;
 		sig_dog::temp = -1;
@@ -552,23 +571,7 @@ int main(int argc, char** argv){
 
 
 ///////////////////////////////IMPL//////////////////////////////////
-#ifdef WIN32
-#define WINDOWS
-#endif
-
-#ifdef _WIN32
-#define WINDOWS
-#endif
-
-#ifdef _WIN64
-#define WINDOWS
-#endif
-
 #ifdef WINDOWS
-/* To cooperate with windows programs */
-	#include <Windows.h>
-	#include <time.h>
-
 	typedef struct timeval TTYPE;
 	void toWC(const char* msg,wchar_t *buf);
 	LARGE_INTEGER getFILETIMEoffset();
